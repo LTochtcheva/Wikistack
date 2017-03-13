@@ -5,28 +5,53 @@ var models = require('../models');
 var Page = models.Page;
 var User = models.User;
 
-
 router.get('/',function(req,res){
-  res.send("Hello");
+  Page.findAll({}).then(function(pages){
+    res.render('index', { pages: pages })
+  })
 })
 
 router.get('/add/',function(req,res){
   res.render('addpage');
-})
+});
 
-router.post('/',function(req,res){
-  var title = req.body.title;
+router.get('/:urlTitle',function(req, res, next){
+  Page.findOne({
+    where: {
+      urlTitle: req.params.urlTitle
+    }
+  }).then(function(foundPage){
+    res.render('wikipage', { foundPage: foundPage } )
+  })
+  .catch(next);
+});
+
+router.post('/',function(req,res, next){
+  console.log(req.body);
+
+User.findOrCreate({
+  where: {
+    name: req.body.author,
+    email: req.body.email
+  }
+})
+.then(function (values) {
+
+  var user = values[0];
+
   var page = Page.build({
-    title: title,
-    urlTitle: title.split(" ").join("_"),
+    title: req.body.title,
     content: req.body.content
   });
-  console.log(page.urlTitle);
-  // STUDENT ASSIGNMENT:
-  // make sure we only redirect *after* our save is complete!
-  // note: `.save` returns a promise or it can take a callback.
-  // page.save();
-  res.redirect('/wiki');
+  return page.save().then(function (page) {
+  return page.setAuthor(user);
+  });
+})
+.then(function (page) {
+  res.redirect(page.getRoute);
+})
+.catch(next);
+
 })
 
 module.exports = router;
